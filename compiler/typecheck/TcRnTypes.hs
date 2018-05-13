@@ -3404,6 +3404,7 @@ data CtOrigin
   | MCompPatOrigin (LPat GhcRn) -- Arising from a failable pattern in a
                                 -- monad comprehension
   | IfOrigin            -- Arising from an if statement
+  | InlineBindOrigin    -- Arising from an inline binding
   | ProcOrigin          -- Arising from a proc expression
   | AnnOrigin           -- An annotation
 
@@ -3517,6 +3518,7 @@ exprCtOrigin (HsProc {})         = Shouldn'tHappenOrigin "proc"
 exprCtOrigin (HsStatic {})       = Shouldn'tHappenOrigin "static expression"
 exprCtOrigin (HsArrApp {})       = panic "exprCtOrigin HsArrApp"
 exprCtOrigin (HsArrForm {})      = panic "exprCtOrigin HsArrForm"
+exprCtOrigin (HsInlineBind e)         = lexprCtOrigin e
 exprCtOrigin (HsTick _ _ e)           = lexprCtOrigin e
 exprCtOrigin (HsBinTick _ _ _ e)      = lexprCtOrigin e
 exprCtOrigin (HsTickPragma _ _ _ _ e) = lexprCtOrigin e
@@ -3664,6 +3666,7 @@ pprCtO StandAloneDerivOrigin = text "a 'deriving' declaration"
 pprCtO DefaultOrigin         = text "a 'default' declaration"
 pprCtO DoOrigin              = text "a do statement"
 pprCtO MCompOrigin           = text "a statement in a monad comprehension"
+pprCtO InlineBindOrigin      = text "an inline binding"
 pprCtO ProcOrigin            = text "a proc expression"
 pprCtO (TypeEqOrigin t1 t2 _ _)= text "a type equality" <+> sep [ppr t1, char '~', ppr t2]
 pprCtO AnnOrigin             = text "an annotation"

@@ -841,6 +841,11 @@ zonkExpr env (HsCoreAnn x src lbl expr)
   = do new_expr <- zonkLExpr env expr
        return (HsCoreAnn x src lbl new_expr)
 
+-- inline bindings extension
+zonkExpr env (HsInlineBind expr)
+  = do { new_expr <- zonkLExpr env expr
+       ; return (HsInlineBind new_expr) }
+
 -- arrow notation extensions
 zonkExpr env (HsProc x pat body)
   = do  { (env1, new_pat) <- zonkPat env pat

@@ -610,6 +610,49 @@ tcExpr (HsDo _ do_or_lc stmts) res_ty
   = do { expr' <- tcDoStmts do_or_lc stmts res_ty
        ; return expr' }
 
+-- TODO: remove?
+tcExpr (HsInlineBind e) res_ty
+--   = pprPanic "tcExpr " (ppr e <+> text " :: " <+> ppr res_ty)
+  = do { (e', e_ty) <- tcInferRho e
+       ; traceTc "HsInlineBind(1)" (ppr e_ty)
+
+       -- The inferred type of the bound expression should have the form 'm a'
+       -- where 'a' unifies with 'res_ty'.
+       -- ; Just (m, a) <- return $ tcRepSplitAppTy_maybe e_ty
+       ; (co, (m, a)) <- matchExpectedAppTy e_ty
+
+       -- tcSyntaxOp doesn't appear to be what I want
+       -- ; (arg', e') <- tcSyntaxOp InlineBindOrigin e [SynAny] res_ty
+       --   $ \[arg_ty] -> tcMonoExpr e (mkCheckExpType arg_ty)
+
+       -- TODO: use res_ty
+       -- doesn't work because res_ty isn't a Rho, it's an ExpRho, but this
+       -- seems like it should do what I want if I can get the types to match
+       -- ; unifyType Nothing (mkAppTy m a) res_ty
+       -- ; tcMonoExpr a res_ty
+       ; wrapper <- tcSubTypeHR InlineBindOrigin Nothing a res_ty
+
+       ; traceTc "HsInlineBind(2)" (text "co:" <+> ppr co <+> text "m:" <+> ppr m <+> text "a:" <+> ppr a)
+       ; return $ mkHsWrap wrapper $ mkHsWrapCo co $ HsInlineBind e' }
+
+{-
+       ; case tcSplitTyConApp_maybe e_ty of
+         -- bound expression must have the form 'm a' for some 'm' and 'a'
+         -- note that when 'm' ~ 'Either e' for example, 
+         -- 'tcSplitTyConApp_maybe' will return 'Either' and '[e, a]',
+         -- so I think we don't want to match '[a]', just '_as'
+         Just (m, as@(_ : _)) -> do
+           -- TODO: This is probably totally wrong; nothing else here uses writeTcRef directly
+           { writeTcRef res_ty (Just (foldl mkHsAppTy m (init as)))
+           ; return (HsInlineBind e') }
+         _ -> failWith $
+           -- TODO: better error message
+           text "Cannot use an expression of type" <+> quotes (ppr e_ty) $$
+           text "in an inline binding"
+        -- ; e' <- tcMonoExpr e res_ty  -- TODO: include monad somehow
+        }
+-}
+
 tcExpr (HsProc x pat cmd) res_ty
   = do  { (pat', cmd', coi) <- tcProc pat cmd res_ty
         ; return $ mkHsWrapCo coi (HsProc x pat' cmd') }

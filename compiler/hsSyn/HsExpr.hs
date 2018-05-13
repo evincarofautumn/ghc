@@ -640,6 +640,13 @@ data HsExpr p
         [LHsCmdTop p]    -- argument commands
 
   ---------------------------------------
+  -- Inline bindings extension
+
+  -- | Inline binding (should only occur within a do block)
+  | HsInlineBind
+    (LHsExpr p)
+
+  ---------------------------------------
   -- Haskell program coverage (Hpc) Support
 
   | HsTick
@@ -1158,6 +1165,8 @@ ppr_expr (HsProc _ pat (L _ (XCmdTop x)))
 ppr_expr (HsStatic _ e)
   = hsep [text "static", ppr e]
 
+ppr_expr (HsInlineBind e)
+  = hsep [text "<-", pprDebugParendExpr e]
 ppr_expr (HsTick _ tickish exp)
   = pprTicks (ppr exp) $
     ppr tickish <+> ppr_lexpr exp

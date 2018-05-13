@@ -294,6 +294,8 @@ tcDoStmts :: HsStmtContext Name
           -> Located [LStmt GhcRn (LHsExpr GhcRn)]
           -> ExpRhoType
           -> TcM (HsExpr GhcTcId)          -- Returns a HsDo
+
+-- TODO: handle inline bindings in list comprehensions
 tcDoStmts ListComp (L l stmts) res_ty
   = do  { res_ty <- expTypeToType res_ty
         ; (co, elt_ty) <- matchExpectedListTy res_ty
@@ -302,6 +304,7 @@ tcDoStmts ListComp (L l stmts) res_ty
                             (mkCheckExpType elt_ty)
         ; return $ mkHsWrapCo co (HsDo list_ty ListComp (L l stmts')) }
 
+-- TODO: handle inline bindings in parallel list comprehensions?
 tcDoStmts PArrComp (L l stmts) res_ty
   = do  { res_ty <- expTypeToType res_ty
         ; (co, elt_ty) <- matchExpectedPArrTy res_ty
@@ -315,11 +318,13 @@ tcDoStmts DoExpr (L l stmts) res_ty
         ; res_ty <- readExpType res_ty
         ; return (HsDo res_ty DoExpr (L l stmts')) }
 
+-- TODO: handle inline bindings in mdo-notation
 tcDoStmts MDoExpr (L l stmts) res_ty
   = do  { stmts' <- tcStmts MDoExpr tcDoStmt stmts res_ty
         ; res_ty <- readExpType res_ty
         ; return (HsDo res_ty MDoExpr (L l stmts')) }
 
+-- TODO: handle inline bindings in monad comprehensions
 tcDoStmts MonadComp (L l stmts) res_ty
   = do  { stmts' <- tcStmts MonadComp tcMcStmt stmts res_ty
         ; res_ty <- readExpType res_ty
@@ -376,6 +381,9 @@ tcStmtsAndThen _ _ [] res_ty thing_inside
         ; return ([], thing) }
 
 -- LetStmts are handled uniformly, regardless of context
+-- TODO: add binding notation to let statement?
+-- ("let pat <- exp" = "let pat = <- exp" = "pat <- exp")
+-- TODO: handle inline binding in let expression
 tcStmtsAndThen ctxt stmt_chk (L loc (LetStmt x (L l binds)) : stmts)
                                                              res_ty thing_inside
   = do  { (binds', (stmts',thing)) <- tcLocalBinds binds $

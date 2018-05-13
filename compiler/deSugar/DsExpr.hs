@@ -734,6 +734,9 @@ ds_expr _ (HsSpliceE _ s)         = pprPanic "dsExpr:splice" (ppr s)
 -- Arrow notation extension
 ds_expr _ (HsProc _ pat cmd) = dsProcExpr pat cmd
 
+-- Inline bindings extension
+ds_expr _ (HsInlineBind _) = panic "dsExpr HsInlineBind"   -- 'do' desugaring eliminates them
+
 -- Hpc Support
 
 ds_expr _ (HsTick _ tickish e) = do
@@ -903,6 +906,7 @@ handled in DsListComp).  Basically does the translation given in the
 Haskell 98 report:
 -}
 
+-- TODO: desugar inline bindings here
 dsDo :: [ExprLStmt GhcTc] -> DsM CoreExpr
 dsDo stmts
   = goL stmts

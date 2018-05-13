@@ -88,7 +88,7 @@ import GhcPrelude
 import qualified GHC.LanguageExtensions as LangExt
 }
 
-%expect 233 -- shift/reduce conflicts
+%expect 300 -- 233 -- shift/reduce conflicts
 
 {- Last updated: 14 Apr 2018
 
@@ -2476,6 +2476,8 @@ exp10_top :: { LHsExpr GhcPs }
         : '-' fexp                      {% ams (sLL $1 $> $ NegApp noExt $2 noSyntaxExpr)
                                                [mj AnnMinus $1] }
 
+        | '<-' fexp        {% ams (sLL $1 $> $ HsInlineBind $2)
+                                  [mj AnnLarrow $1] }
 
         | hpc_annot exp        {% ams (sLL $1 $> $ HsTickPragma noExt (snd $ fst $ fst $ unLoc $1)
                                                                 (snd $ fst $ unLoc $1) (snd $ unLoc $1) $2)

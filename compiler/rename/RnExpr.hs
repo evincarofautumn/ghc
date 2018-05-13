@@ -417,6 +417,24 @@ rnExpr (HsProc x pat body)
 rnExpr e@(HsArrApp {})  = arrowFail e
 rnExpr e@(HsArrForm {}) = arrowFail e
 
+{-
+************************************************************************
+*                                                                      *
+        Inline bindings
+*                                                                      *
+************************************************************************
+-}
+
+-- TODO: respect scope restrictions?
+-- (don't lift beyond a binding with the same name)
+--
+-- TODO: respect precedence? (like mkNegAppRn)
+rnExpr (HsInlineBind e)
+  = do { (e', fv_e)         <- rnLExpr e
+       -- ; (neg_name, fv_neg) <- lookupSyntaxName negateName
+       -- ; final_e            <- mkNegAppRn e' neg_name
+       ; return (HsInlineBind e', fv_e) }
+
 rnExpr other = pprPanic "rnExpr: unexpected expression" (ppr other)
         -- HsWrap
 

@@ -1012,6 +1012,7 @@ cvtFld :: (RdrName -> t) -> (TH.Name, TH.Exp)
 cvtFld f (v,e)
   = do  { v' <- vNameL v; e' <- cvtl e
         ; return (noLoc $ HsRecField { hsRecFieldLbl = fmap f v'
+                                     , hsRecFieldBind = False
                                      , hsRecFieldArg = e'
                                      , hsRecPun      = False}) }
 
@@ -1266,6 +1267,7 @@ cvtPatFld (s,p)
         ; p' <- cvtPat p
         ; return (noLoc $ HsRecField { hsRecFieldLbl
                                          = cL ls $ mkFieldOcc (cL ls s')
+                                     , hsRecFieldBind = False
                                      , hsRecFieldArg = p'
                                      , hsRecPun      = False}) }
 

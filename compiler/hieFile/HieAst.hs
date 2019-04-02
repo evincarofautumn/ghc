@@ -692,8 +692,8 @@ instance ( a ~ GhcPass p
       contextify (RecCon r) = RecCon $ RC RecFieldMatch $ contextify_rec r
       contextify_rec (HsRecFields fds a) = HsRecFields (map go scoped_fds) a
         where
-          go (RS fscope (L spn (HsRecField lbl pat pun))) =
-            L spn $ HsRecField lbl (PS rsp scope fscope pat) pun
+          go (RS fscope (L spn (HsRecField lbl bind pat pun))) =
+            L spn $ HsRecField lbl bind (PS rsp scope fscope pat) pun
           scoped_fds = listScopes pscope fds
 
 instance ( ToHie body
@@ -759,6 +759,9 @@ instance ( a ~ GhcPass p
         ]
       HsLamCase _ mg ->
         [ toHie mg
+        ]
+      HsInlineBind _ expr ->
+        [ toHie expr
         ]
       HsApp _ a b ->
         [ toHie a
@@ -986,7 +989,7 @@ instance ( ToHie (RFContext (Located label))
          , Data arg
          ) => ToHie (RContext (LHsRecField' label arg)) where
   toHie (RC c (L span recfld)) = concatM $ makeNode recfld span : case recfld of
-    HsRecField label expr _ ->
+    HsRecField label _ expr _ ->
       [ toHie $ RFC c (getRealSpan $ loc expr) label
       , toHie expr
       ]

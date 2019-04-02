@@ -410,12 +410,14 @@ type HsRecUpdField p     = HsRecField' (AmbiguousFieldOcc p) (LHsExpr p)
 -- | Haskell Record Field
 --
 -- - 'ApiAnnotation.AnnKeywordId' : 'ApiAnnotation.AnnEqual',
+--                                  'ApiAnnotation.AnnLarrow'
 --
 -- For details on above see note [Api annotations] in ApiAnnotation
 data HsRecField' id arg = HsRecField {
-        hsRecFieldLbl :: Located id,
-        hsRecFieldArg :: arg,           -- ^ Filled in by renamer when punning
-        hsRecPun      :: Bool           -- ^ Note [Punning]
+        hsRecFieldLbl  :: Located id,
+        hsRecFieldBind :: Bool,          -- ^ Whether this is an inline binding
+        hsRecFieldArg  :: arg,           -- ^ Filled in by renamer when punning
+        hsRecPun       :: Bool           -- ^ Note [Punning]
   } deriving (Data, Functor, Foldable, Traversable)
 
 

@@ -305,6 +305,13 @@ ds_expr _ (HsLamCase _ matches)
   = do { ([discrim_var], matching_code) <- matchWrapper CaseAlt Nothing matches
        ; return $ Lam discrim_var matching_code }
 
+-- Inline bindings extension
+--
+-- Just desugars the inner expression; the actual extension's desugaring is
+-- handled as part of do-notation desugaring (dsDo).
+ds_expr _ (HsInlineBind _ e)
+  = dsLExpr e
+
 ds_expr _ e@(HsApp _ fun arg)
   = do { fun' <- dsLExpr fun
        ; dsWhenNoErrs (dsLExprNoLP arg)
@@ -889,7 +896,64 @@ dsArithSeq expr (FromThenTo from thn to)
 {-
 Desugar 'do' and 'mdo' expressions (NOT list comprehensions, they're
 handled in DsListComp).  Basically does the translation given in the
-Haskell 98 report:
+Haskell 98 report.
+
+Also desugar inline bindings to applicative combinators according to the
+following rules:
+
+  * An expression statement containing inline bindings is desugared to a
+    lambda applicatively mapped over the inline binding expressions
+    using '(<$>)' and '(<*>)', wrapped in a call to 'join'.
+
+    do { f (<- m1) ... (<- m2) ... (<- mN) ...
+       ; stmts
+       }
+
+    =>
+
+    join ((\ x1 x2 ... xN -> f x1 ... x2 ... xN ...)
+            <$> m1 <*> m2 ... <*> mN)
+      *> do { stmts }
+
+  * A 'let' statement is desugared by applying the above transformation
+    to each binding in source order, binding each result with a lambda,
+    and proceeding with the ordinary 'let' statement desugaring:
+
+    do { let { b1 = f1 (<- m1)
+             ; b2 = f2 (<- m2)
+             ; ...
+             ; bN = fN (<- mN)
+             }
+       ; stmts
+       }
+
+    =>
+
+    join ((\ x1 -> f1 x1) <$> m1) >>= \ y1 ->
+    join ((\ x2 -> f2 x2) <$> m2) >>= \ y2 ->
+    ...
+    join ((\ xN -> fN xN) <$> mN) >>= \ yN ->
+      let { b1 = f1 y1
+          ; b2 = f2 y2
+          ; ...
+          ; bN = fN yN
+          } in do { stmts }
+
+  * As optimizations, an expression containing only a single binding is
+    desugared without an intermediate lambda, and if the expression
+    consists of *only* a binding, no applicative combinators are
+    introduced.
+
+    f (<- x)
+    =>
+    join ((\x' -> f x') <$> x)
+    =>
+    join (f <$> x)
+
+    (<- x)
+    =>
+    join x
+
 -}
 
 dsDo :: [ExprLStmt GhcTc] -> DsM CoreExpr
@@ -900,22 +964,22 @@ dsDo stmts
     goL ((dL->L loc stmt):lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
 
     go _ (LastStmt _ body _ _) stmts
-      = ASSERT( null stmts ) dsLExpr body
+      = ASSERT( null stmts ) dsInlineBindExpr body
         -- The 'return' op isn't used for 'do' expressions
 
     go _ (BodyStmt _ rhs then_expr _) stmts
-      = do { rhs2 <- dsLExpr rhs
+      = do { rhs2 <- dsInlineBindExpr rhs
            ; warnDiscardedDoBindings rhs (exprType rhs2)
            ; rest <- goL stmts
            ; dsSyntaxExpr then_expr [rhs2, rest] }
 
     go _ (LetStmt _ binds) stmts
       = do { rest <- goL stmts
-           ; dsLocalBinds binds rest }
+           ; dsInlineBindLet binds rest }
 
     go _ (BindStmt res1_ty pat rhs bind_op fail_op) stmts
       = do  { body     <- goL stmts
-            ; rhs'     <- dsLExpr rhs
+            ; rhs'     <- dsInlineBindExpr rhs
             ; var   <- selectSimpleMatchVarL pat
             ; match <- matchSinglePatVar var (StmtCtxt DoExpr) pat
                                       res1_ty (cantFailMatchResult body)
@@ -928,7 +992,7 @@ dsDo stmts
                (pats, rhss) = unzip (map (do_arg . snd) args)
 
                do_arg (ApplicativeArgOne _ pat expr _) =
-                 (pat, dsLExpr expr)
+                 (pat, dsInlineBindExpr expr)
                do_arg (ApplicativeArgMany _ stmts ret pat) =
                  (pat, dsDo (stmts ++ [noLoc $ mkLastStmt (noLoc ret)]))
                do_arg (XApplicativeArg _) = panic "dsDo"
@@ -945,7 +1009,7 @@ dsDo stmts
                       , mg_ext = MatchGroupTc arg_tys body_ty
                       , mg_origin = Generated }
 
-           ; fun' <- dsLExpr fun
+           ; fun' <- dsInlineBindExpr fun
            ; let mk_ap_call l (op,r) = dsSyntaxExpr op [l,r]
            ; expr <- foldlM mk_ap_call fun' (zip (map fst args) rhss')
            ; case mb_join of
@@ -989,6 +1053,12 @@ dsDo stmts
     go _ (ParStmt   {}) _ = panic "dsDo ParStmt"
     go _ (TransStmt {}) _ = panic "dsDo TransStmt"
     go _ (XStmtLR   {}) _ = panic "dsDo XStmtLR"
+
+dsInlineBindExpr :: LHsExpr GhcTc -> DsM CoreExpr
+dsInlineBindExpr = dsLExpr
+
+dsInlineBindLet :: LHsLocalBinds GhcTc -> CoreExpr -> DsM CoreExpr
+dsInlineBindLet = dsLocalBinds
 
 handle_failure :: LPat GhcTc -> MatchResult -> SyntaxExpr GhcTc -> DsM CoreExpr
     -- In a do expression, pattern-match failure just calls

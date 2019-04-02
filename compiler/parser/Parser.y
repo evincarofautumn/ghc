@@ -92,7 +92,7 @@ import Util             ( looksLikePackageName, fstOf3, sndOf3, thdOf3 )
 import GhcPrelude
 }
 
-%expect 236 -- shift/reduce conflicts
+%expect 303 -- shift/reduce conflicts
 
 {- Last updated: 04 June 2018
 
@@ -2607,6 +2607,10 @@ exp10_top :: { ExpCmdP }
                                            ams (sLL $1 $> $ NegApp noExt $2 noSyntaxExpr)
                                                [mj AnnMinus $1] }
 
+        | '<-' fexp
+          {% runExpCmdP $2 >>= \ $2 ->
+            fmap ecFromExp $
+            ams (sLL $1 $> $ HsInlineBind noExt $2 {- noSyntaxExpr -}) [mj AnnLarrow $1] }
 
         | hpc_annot exp        {% runExpCmdP $2 >>= \ $2 ->
                                   fmap ecFromExp $
@@ -3267,13 +3271,18 @@ fbinds1 :: { ([AddAnn],([LHsRecField GhcPs (LHsExpr GhcPs)], Maybe SrcSpan)) }
 
 fbind   :: { LHsRecField GhcPs (LHsExpr GhcPs) }
         : qvar '=' texp {% runExpCmdP $3 >>= \ $3 ->
-                           ams  (sLL $1 $> $ HsRecField (sL1 $1 $ mkFieldOcc $1) $3 False)
+                           ams  (sLL $1 $> $ HsRecField (sL1 $1 $ mkFieldOcc $1) False $3 False)
                                 [mj AnnEqual $2] }
                         -- RHS is a 'texp', allowing view patterns (#6038)
                         -- and, incidentally, sections.  Eg
                         -- f (R { x = show -> s }) = ...
 
-        | qvar          { sLL $1 $> $ HsRecField (sL1 $1 $ mkFieldOcc $1) placeHolderPunRhs True }
+        | qvar '<-' texp {% runExpCmdP $3 >>= \ $3 ->
+                            ams  (sLL $1 $> $ HsRecField (sL1 $1 $ mkFieldOcc $1) True $3 False)
+                                 [mj AnnLarrow $2] }
+                         -- Inline record binding
+
+        | qvar          { sLL $1 $> $ HsRecField (sL1 $1 $ mkFieldOcc $1) False placeHolderPunRhs True }
                         -- In the punning case, use a place-holder
                         -- The renamer fills in the final value
 

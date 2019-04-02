@@ -3631,6 +3631,7 @@ exprCtOrigin (HsOverLit _ lit)    = LiteralOrigin lit
 exprCtOrigin (HsLit {})           = Shouldn'tHappenOrigin "concrete literal"
 exprCtOrigin (HsLam _ matches)    = matchesCtOrigin matches
 exprCtOrigin (HsLamCase _ ms)     = matchesCtOrigin ms
+exprCtOrigin (HsInlineBind _ e)   = lexprCtOrigin e
 exprCtOrigin (HsApp _ e1 _)       = lexprCtOrigin e1
 exprCtOrigin (HsAppType _ e1 _)   = lexprCtOrigin e1
 exprCtOrigin (OpApp _ _ op _)     = lexprCtOrigin op

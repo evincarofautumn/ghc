@@ -266,6 +266,86 @@ tcExpr e@(HsLamCase x matches) res_ty
               , text "requires"]
     match_ctxt = MC { mc_what = CaseAlt, mc_body = tcBody }
 
+-- For inline bindings, we do essentially the opposite of 'static'
+-- expressions: whereas to typecheck @(static e) :: p a@ we check @e ::
+-- a@, for @(<- e) :: a@ we check @e :: m a@ for some @m@.
+
+tcExpr (HsInlineBind x expr) res_ty
+  = do { res_ty <- expTypeToType res_ty
+{-
+       ; (expr', _lie) <- captureConstraints
+           $ addErrCtxt
+             (hang (text "In the body of an inline binding:") 2 (ppr expr))
+           $ tcPolyExprNC expr ( res_ty
+       ; (co, (_m_ty, expr_ty)) <- matchExpectedAppTy res_ty
+-}
+
+        ; m_ty <- newFlexiTyVarTy (mkFunTy VisArg liftedTypeKind liftedTypeKind)
+        ; let action_ty = mkAppTy m_ty res_ty
+        -- TODO: captureConstraints?
+        ; expr' <- addErrCtxt
+          (hang (text "In the body of an inline binding:") 2 (ppr expr))
+          $ tcPolyExprNC expr action_ty
+
+       -- TODO: Produce a warning if the free variables of an inline
+       -- binding cross a scope where they are shadowed, e.g.:
+       --
+       --     f xs = do
+       --       let x = pure 0
+       --       forM_ xs $ \ x -> putStrLn (<- x)
+       --
+       --     f $ pure <$> [1..3]
+       --
+       -- Produces:
+       --
+       --     0
+       --     0
+       --     0
+       --
+       -- Because the inline binding refers to the outer 'x' according
+       -- to its desugaring:
+       --
+       --     f xs = do
+       --       let x = pure 0
+       --       join ((\ x0 -> forM_ xs $ \ x -> putStrLn x0) <$> x)
+       --
+       -- When what was probably intended was an intervening 'do' to
+       -- refer to the inner 'x':
+       --
+       --     f xs = do
+       --       let x = pure 0
+       --       forM_ xs $ \ x -> do putStrLn (<- x)
+       --
+       --     =>
+       --
+       --     f xs = do
+       --       let x = pure 0
+       --       forM_ xs $ \ x -> join ((\ x0 -> putStrLn x0) <$> x)
+       --
+
+       -- We don't require 'm_ty' to be an instance of 'Monad' because:
+       --
+       --   1. This would be too restrictive; the expression may
+       --      semantically only require 'Functor' for a single binding,
+       --      or 'Applicative' for multiple non-nested bindings, e.g.:
+       --
+       --          do pure (f (<- x))
+       --          ==
+       --          f <$> x
+       --
+       --          do pure (f (<- x) (<- y))
+       --          ==
+       --          f <$> x <*> y
+       --
+       --   2. We don't have enough context here to determine what
+       --      constraint the desugared result will actually need
+       --
+       --   3. If 'm_ty' is not an instance of the appropriate class, an
+       --      error will be generated elsewhere anyway
+       --
+
+       ; return $ HsInlineBind x expr' }
+
 tcExpr e@(ExprWithTySig _ expr sig_ty) res_ty
   = do { let loc = getLoc (hsSigWcType sig_ty)
        ; sig_info <- checkNoErrs $  -- Avoid error cascade

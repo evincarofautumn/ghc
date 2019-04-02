@@ -623,6 +623,7 @@ rnHsRecFields ctxt mk_arg (HsRecFields { rec_flds = flds, rec_dotdot = dotdot })
                            (HsRecField
                               { hsRecFieldLbl =
                                   (dL->L loc (FieldOcc _ (dL->L ll lbl)))
+                              , hsRecFieldBind = bind
                               , hsRecFieldArg = arg
                               , hsRecPun      = pun }))
       = do { sel <- setSrcSpan loc $ lookupRecFieldOcc parent lbl
@@ -635,9 +636,10 @@ rnHsRecFields ctxt mk_arg (HsRecFields { rec_flds = flds, rec_dotdot = dotdot })
            ; return (cL l (HsRecField
                              { hsRecFieldLbl = (cL loc (FieldOcc
                                                           sel (cL ll lbl)))
+                             , hsRecFieldBind = bind
                              , hsRecFieldArg = arg'
                              , hsRecPun      = pun })) }
-    rn_fld _ _ (dL->L _ (HsRecField (dL->L _ (XFieldOcc _)) _ _))
+    rn_fld _ _ (dL->L _ (HsRecField (dL->L _ (XFieldOcc _)) _ _ _))
       = panic "rnHsRecFields"
     rn_fld _ _ _ = panic "rn_fld: Impossible Match"
                                 -- due to #15884
@@ -682,6 +684,7 @@ rnHsRecFields ctxt mk_arg (HsRecFields { rec_flds = flds, rec_dotdot = dotdot })
            ; addUsedGREs dot_dot_gres
            ; return [ cL loc (HsRecField
                         { hsRecFieldLbl = cL loc (FieldOcc sel (cL loc arg_rdr))
+                        , hsRecFieldBind = False
                         , hsRecFieldArg = cL loc (mk_arg loc arg_rdr)
                         , hsRecPun      = False })
                     | fl <- dot_dot_fields
@@ -728,6 +731,7 @@ rnHsRecUpdFields flds
     rn_fld :: Bool -> Bool -> LHsRecUpdField GhcPs
            -> RnM (LHsRecUpdField GhcRn, FreeVars)
     rn_fld pun_ok overload_ok (dL->L l (HsRecField { hsRecFieldLbl = dL->L loc f
+                                                   , hsRecFieldBind = bind
                                                    , hsRecFieldArg = arg
                                                    , hsRecPun      = pun }))
       = do { let lbl = rdrNameAmbiguousFieldOcc f
@@ -764,6 +768,7 @@ rnHsRecUpdFields flds
                           Right _ -> cL loc (Ambiguous   noExt     (cL loc lbl))
 
            ; return (cL l (HsRecField { hsRecFieldLbl = lbl'
+                                      , hsRecFieldBind = bind
                                       , hsRecFieldArg = arg''
                                       , hsRecPun      = pun }), fvs') }
 

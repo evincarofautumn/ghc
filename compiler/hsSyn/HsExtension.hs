@@ -509,6 +509,7 @@ type family XOverLitE       x
 type family XLitE           x
 type family XLam            x
 type family XLamCase        x
+type family XInlineBind     x
 type family XApp            x
 type family XAppTypeE       x
 type family XOpApp          x
@@ -557,6 +558,7 @@ type ForallXExpr (c :: * -> Constraint) (x :: *) =
        , c (XLitE           x)
        , c (XLam            x)
        , c (XLamCase        x)
+       , c (XInlineBind     x)
        , c (XApp            x)
        , c (XAppTypeE       x)
        , c (XOpApp          x)

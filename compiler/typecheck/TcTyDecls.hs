@@ -902,6 +902,7 @@ mkOneRecordSelector all_cons idDetails fl
                         { hsRecFieldLbl
                            = cL loc (FieldOcc sel_name
                                      (cL loc $ mkVarUnqual lbl))
+                        , hsRecFieldBind = False
                         , hsRecFieldArg
                            = cL loc (VarPat noExt (cL loc field_var))
                         , hsRecPun = False })

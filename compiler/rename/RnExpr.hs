@@ -251,6 +251,12 @@ rnExpr (HsLamCase x matches)
   = do { (matches', fvs_ms) <- rnMatchGroup CaseAlt rnLExpr matches
        ; return (HsLamCase x matches', fvs_ms) }
 
+rnExpr (HsInlineBind x expr)
+  = do { (expr', fv_expr) <- rnLExpr expr
+       -- TODO: Rebindable syntax.
+       ; return (HsInlineBind x expr', fv_expr)
+       }
+
 rnExpr (HsCase x expr matches)
   = do { (new_expr, e_fvs) <- rnLExpr expr
        ; (new_matches, ms_fvs) <- rnMatchGroup CaseAlt rnLExpr matches

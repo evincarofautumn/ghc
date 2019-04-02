@@ -986,15 +986,16 @@ tcConArgs con_like arg_tys (RecCon (HsRecFields rpats dd)) penv thing_inside
     tc_field :: Checker (LHsRecField GhcRn (LPat GhcRn))
                         (LHsRecField GhcTcId (LPat GhcTcId))
     tc_field (dL->L l (HsRecField (dL->L loc
-                                    (FieldOcc sel (dL->L lr rdr))) pat pun))
+                                    (FieldOcc sel (dL->L lr rdr))) bind pat pun))
              penv thing_inside
       = do { sel'   <- tcLookupId sel
            ; pat_ty <- setSrcSpan loc $ find_field_ty sel
                                           (occNameFS $ rdrNameOcc rdr)
            ; (pat', res) <- tcConArg (pat, pat_ty) penv thing_inside
-           ; return (cL l (HsRecField (cL loc (FieldOcc sel' (cL lr rdr))) pat'
+           -- TODO: Check as monadic if 'bind' is true?
+           ; return (cL l (HsRecField (cL loc (FieldOcc sel' (cL lr rdr))) bind pat'
                                                                     pun), res) }
-    tc_field (dL->L _ (HsRecField (dL->L _ (XFieldOcc _)) _ _)) _ _
+    tc_field (dL->L _ (HsRecField (dL->L _ (XFieldOcc _)) _ _ _)) _ _
            = panic "tcConArgs"
     tc_field _ _ _ = panic "tc_field: Impossible Match"
                              -- due to #15884

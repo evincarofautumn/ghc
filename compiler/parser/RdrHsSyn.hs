@@ -2379,11 +2379,11 @@ mk_rec_fields fs (Just s)  = HsRecFields { rec_flds = fs
                                      , rec_dotdot = Just (cL s (length fs)) }
 
 mk_rec_upd_field :: HsRecField GhcPs (LHsExpr GhcPs) -> HsRecUpdField GhcPs
-mk_rec_upd_field (HsRecField (dL->L loc (FieldOcc _ rdr)) arg pun)
-  = HsRecField (L loc (Unambiguous noExt rdr)) arg pun
-mk_rec_upd_field (HsRecField (dL->L _ (XFieldOcc _)) _ _)
+mk_rec_upd_field (HsRecField (dL->L loc (FieldOcc _ rdr)) bind arg pun)
+  = HsRecField (L loc (Unambiguous noExt rdr)) bind arg pun
+mk_rec_upd_field (HsRecField (dL->L _ (XFieldOcc _)) _ _ _)
   = panic "mk_rec_upd_field"
-mk_rec_upd_field (HsRecField _ _ _)
+mk_rec_upd_field HsRecField{}
   = panic "mk_rec_upd_field: Impossible Match" -- due to #15884
 
 mkInlinePragma :: SourceText -> (InlineSpec, RuleMatchInfo) -> Maybe Activation

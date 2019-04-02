@@ -339,6 +339,11 @@ data HsExpr p
 
        -- For details on above see note [Api annotations] in ApiAnnotation
 
+  | HsInlineBind (XInlineBind p) (LHsExpr p)
+    -- ^ Inline binding
+    --
+    -- TODO: Add a field of type @'SyntaxExpr' p@ to support rebindable syntax?
+
   | HsApp     (XApp p) (LHsExpr p) (LHsExpr p) -- ^ Application
 
   | HsAppType (XAppTypeE p) (LHsExpr p) (LHsWcType (NoGhcTc p))  -- ^ Visible type application
@@ -695,6 +700,7 @@ type instance XOverLitE      (GhcPass _) = NoExt
 type instance XLitE          (GhcPass _) = NoExt
 type instance XLam           (GhcPass _) = NoExt
 type instance XLamCase       (GhcPass _) = NoExt
+type instance XInlineBind    (GhcPass _) = NoExt
 type instance XApp           (GhcPass _) = NoExt
 
 type instance XAppTypeE      (GhcPass _) = NoExt
@@ -1007,6 +1013,8 @@ ppr_expr (HsLamCase _ matches)
   = sep [ sep [text "\\case"],
           nest 2 (pprMatches matches) ]
 
+ppr_expr (HsInlineBind _ e) = text "<-" <+> pprDebugParendExpr appPrec e
+
 ppr_expr (HsCase _ expr matches@(MG { mg_alts = L _ [_] }))
   = sep [ sep [text "case", nest 4 (ppr expr), ptext (sLit "of {")],
           nest 2 (pprMatches matches) <+> char '}']
@@ -1185,6 +1193,7 @@ hsExprNeedsParens p = go
     go (ExplicitSum{})                = False
     go (HsLam{})                      = p > topPrec
     go (HsLamCase{})                  = p > topPrec
+    go (HsInlineBind{})               = p > topPrec
     go (HsCase{})                     = p > topPrec
     go (HsIf{})                       = p > topPrec
     go (HsMultiIf{})                  = p > topPrec

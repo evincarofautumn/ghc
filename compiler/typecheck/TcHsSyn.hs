@@ -782,6 +782,10 @@ zonkExpr env (HsLamCase x matches)
   = do new_matches <- zonkMatchGroup env zonkLExpr matches
        return (HsLamCase x new_matches)
 
+zonkExpr env (HsInlineBind x expr)
+  = do new_expr <- zonkLExpr env expr
+       return (HsInlineBind x new_expr)
+
 zonkExpr env (HsApp x e1 e2)
   = do new_e1 <- zonkLExpr env e1
        new_e2 <- zonkLExpr env e2
